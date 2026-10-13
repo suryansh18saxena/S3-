@@ -1,0 +1,954 @@
+/* ==========================================================================
+   Hero — "first light to lights on"
+   track (sticky scroll room) → hero → [drawing board] → scene:
+     cam (camera push) → sky (day + dusk + stars + clouds) → "S3" → house
+     (day + dusk) → X-ray lens → mist
+   The entrance runs in CSS from first paint; GSAP (HeroMotion.tsx) drives the
+   pointer depth, the X-ray lens and the scroll-to-dusk sequence.
+   ========================================================================== */
+
+/* Room to scroll while the hero holds still and turns to dusk. Only when
+   JavaScript runs and motion is welcome — otherwise the hero is a plain 100svh. */
+.track {
+  position: relative;
+  --hold: 0px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :global(.js) .track {
+    --hold: 150svh;
+    height: calc(max(100svh, 40rem) + var(--hold));
+  }
+}
+
+.hero {
+  /* Where the tallest roofline (timber block) sits, and the photo box size. */
+  --roof: 49svh;
+  --box-w: max(100vw, 128svh);
+  --box-h: calc(var(--box-w) * 0.5734); /* 1835 / 3200 */
+  --box-shift: -0.5; /* fraction of the box width, left of centre */
+  --word-size: min(35vw, 56svh);
+  /* Headline size, and the wordmark's x so it always clears the copy column. */
+  --h1: clamp(2.55rem, 1.4rem + 3.3vw, 5rem);
+  --shell-left: max(var(--gutter), calc((100vw - 96rem) / 2 + var(--gutter)));
+  --word-x: max(63%, calc(var(--shell-left) + 6.4 * var(--h1) + 2.5rem + 0.745 * var(--word-size)));
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-io: cubic-bezier(0.76, 0, 0.24, 1);
+  --warm: 255 196 128;
+
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  min-height: 40rem;
+  overflow: hidden;
+  isolation: isolate;
+  background-color: var(--color-navy-800);
+  color: var(--color-white);
+}
+.lensOn {
+  cursor: none;
+}
+
+@media (max-width: 1023px) {
+  .hero {
+    --roof: 60svh;
+    --box-shift: -0.55;
+    --word-size: min(58vw, 46svh);
+    --word-x: 58%;
+  }
+}
+@media (max-width: 639px) {
+  .hero {
+    --roof: 65svh;
+    --box-w: max(100vw, 124svh);
+    --box-shift: -0.58;
+    --word-size: 54vw;
+    --word-x: 55%;
+    min-height: 36rem;
+  }
+  .headline {
+    font-size: min(10.4vw, 5.6svh);
+  }
+  .actions {
+    align-items: center;
+    gap: 1.25rem;
+  }
+}
+@media (max-width: 639px) and (max-height: 720px) {
+  .hero {
+    --roof: 68svh;
+    --word-size: 44vw;
+  }
+  .kicker {
+    margin-bottom: 0.9rem;
+  }
+}
+
+/* ---- Drawing board (visible only while the elevation draws) ------------- */
+.blueprint {
+  position: absolute;
+  inset: 0;
+  background-color: var(--color-navy-800);
+  background-image:
+    linear-gradient(to right, rgb(139 205 241 / 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(139 205 241 / 0.08) 1px, transparent 1px),
+    linear-gradient(to right, rgb(139 205 241 / 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(139 205 241 / 0.04) 1px, transparent 1px);
+  background-size:
+    160px 160px,
+    160px 160px,
+    32px 32px,
+    32px 32px;
+}
+
+/* Photo box shared by the drawing, the cut-outs and the lens so they register
+   exactly. Positioned without transforms: GSAP owns transform on these. */
+.box {
+  position: absolute;
+  left: calc(50% + var(--box-shift) * var(--box-w));
+  top: calc(var(--roof) - var(--box-h) * 0.309); /* 567 / 1835 = timber roofline */
+  width: var(--box-w);
+  height: var(--box-h);
+}
+
+.drawing {
+  z-index: 1;
+  color: rgb(196 230 248 / 0.92);
+  animation: fadeOut 0.7s ease 1.35s forwards;
+}
+.drawing svg,
+.lensDrawing svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.drawing path,
+.drawing circle {
+  stroke-width: 2.8;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 0.85s cubic-bezier(0.65, 0, 0.35, 1) calc(0.05s + var(--i) * 6ms) forwards;
+}
+.drawing [data-layer="hatch"] path,
+.lensDrawing [data-layer="hatch"] path {
+  stroke-width: 1.5;
+  opacity: 0.5;
+}
+.drawing [data-layer="notes"] path,
+.drawing [data-layer="bubbles"] circle,
+.lensDrawing [data-layer="notes"] path,
+.lensDrawing [data-layer="bubbles"] circle {
+  stroke-width: 1.6;
+  opacity: 0.55;
+}
+.drawing text,
+.lensDrawing text {
+  font-family: var(--font-display);
+  font-weight: 500;
+}
+.drawing text {
+  opacity: 0;
+  animation: fadeIn 0.6s ease 0.55s forwards;
+}
+
+/* Title block, like the corner of a drawing sheet, with a progress meter. */
+@property --p {
+  syntax: "<integer>";
+  initial-value: 0;
+  inherits: false;
+}
+.titleBlock {
+  position: absolute;
+  left: var(--gutter);
+  bottom: clamp(1.5rem, 5svh, 3rem);
+  z-index: 5;
+  display: grid;
+  gap: 0.45rem;
+  min-width: 17.5rem;
+  padding: 0.95rem 1.1rem 0.9rem;
+  border: 1px solid rgb(196 230 248 / 0.32);
+  background: rgb(11 41 69 / 0.6);
+  color: rgb(196 230 248 / 0.9);
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  pointer-events: none;
+  animation:
+    fadeIn 0.4s ease 0.05s backwards,
+    fadeOut 0.6s ease 1.45s forwards;
+}
+.tbRow {
+  display: block;
+}
+.tbKey {
+  margin-right: 0.6em;
+  opacity: 0.5;
+}
+.tbKey:not(:first-child) {
+  margin-left: 1.2em;
+}
+.tbMeter {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-top: 0.35rem;
+}
+.tbBar {
+  position: relative;
+  flex: 1;
+  height: 1px;
+  overflow: hidden;
+  background: rgb(196 230 248 / 0.22);
+}
+.tbBar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  transform-origin: left;
+  animation: grow 1.3s cubic-bezier(0.65, 0, 0.35, 1) 0.05s both;
+}
+.tbCount {
+  min-width: 3.2em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  counter-reset: p var(--p);
+  animation: count 1.3s cubic-bezier(0.65, 0, 0.35, 1) 0.05s both;
+}
+.tbCount::after {
+  content: counter(p) "%";
+}
+
+/* ---- Photographic scene, revealed by a rising liquid mask ---------------- */
+.scene {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  /* Pre-blurred wave (source: assets/source/liquid-mask.webp), inlined so the reveal never waits on the network. */
+  --liquid: url("data:image/webp;base64,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");
+  -webkit-mask-image: var(--liquid);
+  mask-image: var(--liquid);
+  -webkit-mask-size: 124% 220%;
+  mask-size: 124% 220%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: 0 100%;
+  mask-position: 0 100%;
+  animation: liquid 1.2s var(--ease-io) 0.8s both;
+}
+/* Camera: scaled by the scroll sequence (push-in towards the front door). */
+.cam {
+  position: absolute;
+  inset: 0;
+  transform-origin: 58% 72%;
+  will-change: transform;
+}
+.waterline {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 3;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgb(139 205 241 / 0.9) 20%, #fff 50%, rgb(139 205 241 / 0.9) 80%, transparent);
+  box-shadow: 0 0 24px 4px rgb(82 178 227 / 0.55);
+  opacity: 0;
+  animation: waterline 1.2s var(--ease-io) 0.8s both;
+}
+
+.sky {
+  position: absolute;
+  inset: -6% -4% 0;
+  background:
+    radial-gradient(60% 55% at 86% 2%, rgb(255 255 255 / 0.42), transparent 62%),
+    radial-gradient(90% 70% at 10% 0%, rgb(7 26 43 / 0.32), transparent 70%),
+    linear-gradient(180deg, #1d5a9e 0%, #2f74b9 26%, #5597d3 52%, #8cc0e8 76%, #c6e2f6 100%);
+}
+/* Blue hour: deep indigo overhead, a last band of warm light on the horizon. */
+.skyDusk {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background:
+    radial-gradient(70% 38% at 64% 78%, rgb(255 166 112 / 0.55), transparent 72%),
+    radial-gradient(50% 30% at 12% 6%, rgb(4 10 30 / 0.6), transparent 70%),
+    linear-gradient(180deg, #050d26 0%, #0f1d47 26%, #2a3268 48%, #6b4a78 64%, #c4716c 80%, #f2a271 100%);
+  will-change: opacity;
+}
+.stars {
+  position: absolute;
+  inset: 0 0 42% 0;
+  opacity: 0;
+  background-image:
+    radial-gradient(circle at 18px 22px, #fff 0 1px, transparent 1.6px),
+    radial-gradient(circle at 140px 90px, rgb(255 255 255 / 0.8) 0 0.8px, transparent 1.4px),
+    radial-gradient(circle at 75px 160px, rgb(255 255 255 / 0.7) 0 0.7px, transparent 1.3px),
+    radial-gradient(circle at 210px 40px, rgb(220 235 255 / 0.9) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 260px 210px, rgb(255 255 255 / 0.6) 0 0.7px, transparent 1.2px);
+  background-size:
+    230px 190px,
+    310px 240px,
+    170px 220px,
+    390px 300px,
+    280px 260px;
+  -webkit-mask-image: linear-gradient(180deg, #000 30%, transparent);
+  mask-image: linear-gradient(180deg, #000 30%, transparent);
+  will-change: opacity;
+}
+.stars::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 60px 50px, #fff 0 1.1px, transparent 2px),
+    radial-gradient(circle at 190px 130px, #fff 0 0.9px, transparent 1.7px);
+  background-size:
+    330px 270px,
+    450px 330px;
+  animation: twinkle 3.2s ease-in-out infinite alternate;
+}
+.clouds {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 2.4s ease;
+}
+.clouds[data-ready="true"] {
+  opacity: 1;
+}
+
+/* Giant translucent wordmark that rises from behind the roofline. */
+.word {
+  position: absolute;
+  left: var(--word-x);
+  top: var(--roof);
+  z-index: 1;
+  pointer-events: none;
+  will-change: transform;
+}
+/* Static centring lives on its own wrapper: GSAP owns .word's transform. */
+.wordPos {
+  display: block;
+  translate: -50% -76%;
+}
+.wordInner {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--word-size);
+  font-stretch: 125%;
+  font-weight: 800;
+  line-height: 0.8;
+  letter-spacing: -0.06em;
+  padding-right: 0.06em;
+  white-space: nowrap;
+  color: transparent;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.92) 0%, rgb(255 255 255 / 0.62) 46%, rgb(234 245 255 / 0.28) 78%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: rise 1.5s var(--ease) 1.45s both;
+}
+
+.house {
+  z-index: 2;
+  will-change: transform;
+}
+.houseInner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-origin: 62% 100%;
+  animation: settle 1.9s var(--ease) 0.8s both;
+}
+.houseInner picture,
+.houseInner img {
+  width: 100%;
+  height: 100%;
+}
+.houseInner img {
+  object-fit: fill;
+}
+.duskHouse {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  will-change: opacity;
+}
+
+/* ---- X-ray lens: the drawing beneath the photograph ---------------------- */
+.lens {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  visibility: hidden;
+  pointer-events: none;
+  clip-path: circle(var(--lr, 0px) at var(--lx, 50%) var(--ly, 50%));
+}
+.lensBoard {
+  position: absolute;
+  inset: 0;
+  background-color: #0c3054;
+  background-image:
+    radial-gradient(closest-side at var(--lx, 50%) var(--ly, 50%), rgb(82 178 227 / 0.25), transparent),
+    linear-gradient(to right, rgb(139 205 241 / 0.16) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(139 205 241 / 0.16) 1px, transparent 1px),
+    linear-gradient(to right, rgb(139 205 241 / 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(139 205 241 / 0.07) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    120px 120px,
+    120px 120px,
+    24px 24px,
+    24px 24px;
+}
+.lensDrawing {
+  color: rgb(214 238 252);
+}
+.lensDrawing path,
+.lensDrawing circle {
+  stroke-width: 4.2;
+}
+.lensDrawing [data-layer="mass"] path,
+.lensDrawing [data-layer="openings"] path {
+  stroke-width: 5.5;
+}
+.lensRing {
+  --size: 300px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  width: var(--size);
+  height: var(--size);
+  margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
+  border-radius: 50%;
+  pointer-events: none;
+  visibility: hidden;
+  box-shadow:
+    inset 0 0 0 1px rgb(196 230 248 / 0.75),
+    0 0 0 6px rgb(82 178 227 / 0.12),
+    0 30px 80px -20px rgb(4 15 26 / 0.6);
+}
+/* Crosshair. */
+.lensRing::before,
+.lensRing::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: rgb(214 238 252 / 0.9);
+}
+.lensRing::before {
+  width: 22px;
+  height: 1px;
+  margin: 0 0 0 -11px;
+}
+.lensRing::after {
+  width: 1px;
+  height: 22px;
+  margin: -11px 0 0;
+}
+.lensLabel {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 12px);
+  translate: -50% 0;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: rgb(4 15 26 / 0.7);
+  color: var(--color-sky-200);
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.mist {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 4;
+  height: 34%;
+  background: linear-gradient(180deg, rgb(4 15 26 / 0) 0%, rgb(4 15 26 / 0.22) 55%, rgb(4 15 26 / 0.62) 100%);
+  pointer-events: none;
+}
+
+/* ---- Foreground content -------------------------------------------------- */
+.content {
+  position: relative;
+  z-index: 4;
+  height: 100%;
+  padding-top: calc(var(--header-h) + clamp(2.5rem, 7svh, 5rem));
+}
+
+.title {
+  max-width: 38rem;
+}
+.kicker {
+  display: block;
+  /* Never wider than the headline, so it always clears the wordmark. */
+  max-width: calc(6.2 * var(--h1));
+  margin-bottom: 1.4rem;
+  color: var(--color-sky-200);
+  animation: fadeUp 1s var(--ease) 1.55s backwards;
+}
+.headline {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--h1);
+  font-weight: 600;
+  line-height: 0.96;
+  letter-spacing: -0.04em;
+}
+.line {
+  display: block;
+  overflow: hidden;
+  /* Room for descenders and the italic overhang inside the mask. */
+  padding: 0 0.12em 0.1em 0;
+  margin-bottom: -0.1em;
+}
+.word2 {
+  display: inline-block;
+  white-space: nowrap;
+}
+.word2 + .word2 {
+  margin-left: 0.24em;
+}
+.char {
+  display: inline-block;
+  transform-origin: 0 100%;
+  animation: charUp 1.15s var(--ease) calc(1.55s + var(--c) * 24ms) both;
+}
+.serif {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.14em;
+  line-height: 0.84;
+  letter-spacing: -0.015em;
+  color: var(--color-sky-200);
+}
+.actions {
+  margin-top: clamp(1.75rem, 4svh, 2.6rem);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  animation: fadeUp 1s var(--ease) 2.05s backwards;
+}
+
+/* Second beat of the story — revealed by the scroll sequence. */
+.caption {
+  position: absolute;
+  left: var(--gutter);
+  top: calc(var(--header-h) + clamp(2.5rem, 7svh, 5rem));
+  margin: 0;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(2.6rem, 1.3rem + 4.4vw, 6.4rem);
+  line-height: 0.92;
+  letter-spacing: -0.02em;
+  color: var(--color-white);
+  text-shadow: 0 2px 40px rgb(4 10 30 / 0.45);
+  pointer-events: none;
+}
+.capLine {
+  display: block;
+  overflow: hidden;
+  padding: 0 0.1em 0.06em 0;
+}
+.capLine > span {
+  display: block;
+  transform: translateY(115%);
+}
+.capLine:nth-child(2) {
+  color: rgb(var(--warm));
+}
+
+.hint {
+  position: absolute;
+  left: var(--gutter);
+  bottom: clamp(1.5rem, 6svh, 3.5rem);
+  display: none;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0.95rem 0.6rem 0.8rem;
+  border-radius: 999px;
+  background: rgb(11 41 69 / 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgb(255 255 255 / 0.2);
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 0.9);
+  animation: fadeUp 1s var(--ease) 2.6s backwards;
+}
+@media (hover: hover) and (pointer: fine) and (min-width: 1024px) {
+  .hint {
+    display: inline-flex;
+  }
+}
+.hintDot {
+  position: relative;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--color-sky-300);
+}
+.hintDot::after {
+  content: "";
+  position: absolute;
+  inset: -0.35rem;
+  border-radius: 50%;
+  border: 1px solid var(--color-sky-300);
+  animation: ping 2s var(--ease) 3s infinite;
+}
+
+.noteCard {
+  position: absolute;
+  right: var(--gutter);
+  bottom: clamp(1.5rem, 6svh, 3.5rem);
+  max-width: 22rem;
+  padding: 1.15rem 1.25rem 1.2rem;
+  border-radius: 1.25rem;
+  color: var(--color-white);
+  background: linear-gradient(135deg, rgb(11 41 69 / 0.55), rgb(11 41 69 / 0.32));
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgb(255 255 255 / 0.22);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.2),
+    0 0 0 1px rgb(82 178 227 / 0.12),
+    0 24px 50px -24px rgb(4 15 26 / 0.6);
+  animation: fadeUp 1s var(--ease) 2.25s backwards;
+}
+
+/* Rotating "scroll" badge. */
+.badge {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(1rem, 3.5svh, 2rem);
+  display: grid;
+  place-items: center;
+  width: 7rem;
+  height: 7rem;
+  margin-left: -3.5rem;
+  border-radius: 50%;
+  color: var(--color-white);
+  animation: fadeIn 1s ease 2.5s backwards;
+}
+.badgeText {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: currentColor;
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-size: 9.6px;
+  font-weight: 600;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  animation: spin 16s linear infinite;
+}
+.badgeCore {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.14);
+  border: 1px solid rgb(255 255 255 / 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition:
+    background-color 0.5s var(--ease),
+    color 0.5s var(--ease),
+    transform 0.5s var(--ease);
+}
+.badge:hover .badgeCore,
+.badge:focus-visible .badgeCore {
+  background: var(--color-white);
+  color: var(--color-navy-900);
+  transform: scale(1.08);
+}
+.badgeCore svg {
+  animation: bob 2.2s var(--ease-io) 3s infinite;
+}
+@media (max-width: 639px) {
+  .badge {
+    width: 5.75rem;
+    height: 5.75rem;
+    margin-left: -2.875rem;
+  }
+  .badgeCore {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+}
+
+/* Darkens the hero as the next section slides over it. */
+.shade {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: var(--color-navy-950);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Hold the whole entrance while the first-visit loader is up (layout.tsx). */
+:global(.show-loader:not(.loader-done)) .hero *,
+:global(.show-loader:not(.loader-done)) .hero *::before,
+:global(.show-loader:not(.loader-done)) .hero *::after,
+:global(.show-loader:not(.loader-done) body:has([data-hero-intro])) :global([data-site-header]) > div {
+  animation-play-state: paused;
+}
+
+/* Header joins the choreography on the homepage. */
+:global(body:has([data-hero-intro])) :global([data-site-header]) > div {
+  animation: fadeDown 1.1s var(--ease) 1.5s both;
+}
+
+/* ---- Repeat visit in the same session: skip the drawing, settle quickly -- */
+:global(.intro-seen) .drawing,
+:global(.intro-seen) .waterline,
+:global(.intro-seen) .titleBlock {
+  display: none;
+}
+:global(.intro-seen) .scene {
+  -webkit-mask-image: none;
+  mask-image: none;
+  animation: none;
+}
+:global(.intro-seen) .wordInner {
+  animation-delay: 0.15s;
+  animation-duration: 1.3s;
+}
+:global(.intro-seen) .houseInner {
+  animation-delay: 0s;
+  animation-duration: 1.4s;
+}
+:global(.intro-seen) .kicker,
+:global(.intro-seen) .actions,
+:global(.intro-seen) .noteCard,
+:global(.intro-seen) .badge,
+:global(.intro-seen) .hint {
+  animation-delay: 0.45s;
+}
+:global(.intro-seen) .char {
+  animation-delay: calc(0.2s + var(--c) * 20ms);
+}
+:global(html.intro-seen body:has([data-hero-intro])) :global([data-site-header]) > div {
+  animation-delay: 0.1s;
+}
+
+/* ---- Phones: no drawing or liquid reveal — open on the photograph -------
+   Keeps the hero's largest image visible from first paint (fast LCP) and
+   spares low-power devices the masked compositing. */
+@media (max-width: 767px) {
+  .drawing,
+  .waterline,
+  .titleBlock,
+  .lens,
+  .lensRing {
+    display: none;
+  }
+  .scene {
+    -webkit-mask-image: none;
+    mask-image: none;
+    animation: none;
+  }
+  .wordInner {
+    animation-delay: 0.2s;
+    animation-duration: 1.3s;
+  }
+  .houseInner {
+    animation-delay: 0s;
+    animation-duration: 1.4s;
+  }
+  .kicker,
+  .actions,
+  .noteCard,
+  .badge {
+    animation-delay: 0.5s;
+  }
+  .char {
+    animation-delay: calc(0.2s + var(--c) * 20ms);
+  }
+  :global(body:has([data-hero-intro])) :global([data-site-header]) > div {
+    animation-delay: 0.1s;
+  }
+}
+
+/* Once the intro has finished the mask is removed to keep compositing cheap. */
+.done .scene {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+/* ---- Reduced motion: final daytime composition, no movement -------------- */
+@media (prefers-reduced-motion: reduce) {
+  .hero *,
+  .hero *::before,
+  .hero *::after,
+  :global(body:has([data-hero-intro])) :global([data-site-header]) > div {
+    animation: none !important;
+  }
+  .drawing,
+  .waterline,
+  .titleBlock,
+  .lens,
+  .lensRing,
+  .caption,
+  .hint,
+  .duskHouse {
+    display: none;
+  }
+  .scene {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
+/* ---- Keyframes ----------------------------------------------------------- */
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes count {
+  from {
+    --p: 0;
+  }
+  to {
+    --p: 100;
+  }
+}
+@keyframes liquid {
+  from {
+    -webkit-mask-position: -12vw 0%;
+    mask-position: -12vw 0%;
+  }
+  to {
+    -webkit-mask-position: 0 100%;
+    mask-position: 0 100%;
+  }
+}
+@keyframes waterline {
+  0% {
+    opacity: 0;
+    transform: translateY(12svh);
+  }
+  12%,
+  80% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-112svh);
+  }
+}
+@keyframes rise {
+  from {
+    transform: translateY(108%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes settle {
+  from {
+    transform: scale(1.1);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes charUp {
+  from {
+    transform: translateY(112%) rotate(9deg);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+}
+@keyframes fadeDown {
+  from {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes twinkle {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ping {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  80%,
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(-2px);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
