@@ -51,8 +51,7 @@ function KineticLines() {
  *
  * Scroll (GSAP, HeroMotion): the hero holds while the sky turns to dusk, stars
  * come out, the house's windows light up and the camera pushes in — then the
- * next section slides over it. On desktop an X-ray lens reveals the drawing
- * beneath the photograph wherever the pointer moves over the house.
+ * next section slides over it.
  */
 export function Hero() {
   return (
@@ -104,21 +103,11 @@ export function Hero() {
               </div>
             </div>
 
-            {/* X-ray lens: the drawing beneath the photograph (desktop pointer). */}
-            <div className={s.lens} data-hero-lens>
-              <div className={s.lensBoard} />
-              <div className={`${s.box} ${s.lensDrawing}`} data-depth="house">
-                <HeroElevation />
-              </div>
-            </div>
           </div>
           <div className={s.mist} />
         </div>
         <div className={s.waterline} aria-hidden />
 
-        <div className={s.lensRing} data-hero-ring aria-hidden>
-          <span className={s.lensLabel}>Blueprint view</span>
-        </div>
 
         <div className={`shell ${s.content}`}>
           <div className={s.copy}>
@@ -154,10 +143,6 @@ export function Hero() {
             ))}
           </p>
 
-          <p className={s.hint} data-hero-hint aria-hidden>
-            <span className={s.hintDot} />
-            Hover the house — see its drawing
-          </p>
 
           <aside className={`${s.noteCard} hidden md:block`} aria-label="Studio" data-hero-card>
             <p className="eyebrow mb-2.5 flex items-center gap-2.5 text-sky-300">
@@ -190,7 +175,7 @@ export function Hero() {
         </div>
 
         <div className={s.shade} data-hero-shade aria-hidden />
-        <HeroMotion doneClass={s.done} lensOnClass={s.lensOn} />
+        <HeroMotion doneClass={s.done} />
       </section>
     </div>
   );
