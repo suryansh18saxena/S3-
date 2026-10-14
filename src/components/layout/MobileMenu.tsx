@@ -75,7 +75,7 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
           >
             <div className="shell flex items-center justify-between pt-5 pb-4">
               <Link href="/" onClick={onClose} aria-label={`${site.name} — home`}>
-                <Logo onDark sizes="64px" className="w-[64px]" />
+                <Logo onDark sizes="96px" className="w-[96px]" />
               </Link>
               <button
                 type="button"
