@@ -33,7 +33,6 @@ export default function ServicesPage() {
               <li key={e.title} data-reveal className={i === 0 ? "md:col-span-2" : ""}>
                 <Link
                   href={e.href}
-                  data-cursor="View"
                   className="group grid overflow-hidden rounded-[var(--radius-panel)] bg-white ring-1 ring-navy-900/8 transition-shadow duration-500 hover:shadow-[0_30px_70px_-40px_rgb(4_15_26/0.45)] md:grid-cols-2"
                 >
                   <div className={`media-frame ${i === 0 ? "aspect-[16/10] md:aspect-auto md:min-h-[26rem]" : "aspect-[16/10]"} ${i === 0 ? "" : "md:col-span-2"}`}>
