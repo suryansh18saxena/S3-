@@ -11,7 +11,7 @@ export function SiteFooter() {
       <div className="blueprint pointer-events-none absolute inset-0 opacity-70" aria-hidden />
       <div className="pointer-events-none absolute -top-56 left-1/2 h-[34rem] w-[80rem] -translate-x-1/2 bg-[radial-gradient(closest-side,rgb(22_132_216/0.22),transparent)]" aria-hidden />
 
-      <div className="shell relative z-[2] pt-20 md:pt-28" data-footer-content>
+      <div className="shell relative z-[2] pt-20 pb-14 md:pt-28 md:pb-20" data-footer-content>
         <h2 id="footer-title" className="sr-only">
           {site.name} — contact and site links
         </h2>
@@ -25,7 +25,6 @@ export function SiteFooter() {
             </p>
             <Link
               href="/contact/"
-              data-magnetic
               className="group mt-8 inline-flex items-center gap-3 font-display text-lg font-semibold tracking-tight"
             >
               <span className="link-line">Book a consultation</span>
@@ -101,37 +100,6 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-20 flex flex-col gap-4 border-t border-white/10 pt-7 pb-8 text-[0.8rem] text-white/50 md:flex-row md:items-center md:justify-between">
-          <p>
-            © {year} {site.name}. All rights reserved.
-          </p>
-          <p className="max-w-xl md:text-center">
-            Photography marked as representative is licensed from Unsplash and illustrates building types — it does not depict S3 projects.
-          </p>
-          <ul className="flex items-center gap-6">
-            {legalNav.map((l) => (
-              <li key={l.href}>
-                <Link href={l.href} className="link-line hover:text-white">
-                  {l.label}
-                </Link>
-              </li>
-            ))}
-            <li>
-              <a
-                href="#main"
-                data-magnetic
-                className="group inline-flex items-center gap-2 rounded-full border border-white/20 py-1.5 pr-1.5 pl-4 text-white/80 transition-colors hover:border-white/50 hover:text-white"
-              >
-                <span className="roll">
-                  <span>Back to top</span>
-                </span>
-                <span className="grid size-7 place-items-center rounded-full bg-white/10 transition-transform duration-500 ease-out-expo group-hover:-translate-y-0.5">
-                  <ArrowUpRight size={13} className="-rotate-45" />
-                </span>
-              </a>
-            </li>
-          </ul>
-        </div>
       </div>
 
       {/* Architectural sign-off: outlined wordmark spanning the full width. The
@@ -141,7 +109,7 @@ export function SiteFooter() {
           <defs>
             <linearGradient id="footer-mark-fill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stopColor="rgb(139 205 241)" stopOpacity="0.16" />
-              <stop offset="1" stopColor="rgb(139 205 241)" stopOpacity="0" />
+              <stop offset="1" stopColor="rgb(139 205 241)" stopOpacity="0.07" />
             </linearGradient>
           </defs>
           <text
@@ -160,6 +128,40 @@ export function SiteFooter() {
             S3 INFRASTRUCTURE
           </text>
         </svg>
+      </div>
+
+      {/* Copyright, disclaimer and legal links sit below the wordmark. */}
+      <div className="shell relative z-[2] mt-6">
+        <div className="flex flex-col gap-4 border-t border-white/10 pt-7 pb-8 text-[0.8rem] text-white/50 md:flex-row md:items-center md:justify-between">
+          <p>
+            © {year} {site.name}. All rights reserved.
+          </p>
+          <p className="max-w-xl md:text-center">
+            Photography marked as representative is licensed from Unsplash and illustrates building types — it does not depict S3 projects.
+          </p>
+          <ul className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            {legalNav.map((l) => (
+              <li key={l.href}>
+                <Link href={l.href} className="link-line whitespace-nowrap hover:text-white">
+                  {l.label}
+                </Link>
+              </li>
+            ))}
+            <li>
+              <a
+                href="#main"
+                className="group inline-flex items-center gap-2 rounded-full border border-white/20 py-1.5 pr-1.5 pl-4 whitespace-nowrap text-white/80 transition-colors hover:border-white/50 hover:text-white"
+              >
+                <span className="roll">
+                  <span>Back to top</span>
+                </span>
+                <span className="grid size-7 place-items-center rounded-full bg-white/10 transition-transform duration-500 ease-out-expo group-hover:-translate-y-0.5">
+                  <ArrowUpRight size={13} className="-rotate-45" />
+                </span>
+              </a>
+            </li>
+          </ul>
+        </div>
       </div>
 
       <div className="relative z-[2] border-t border-white/10">

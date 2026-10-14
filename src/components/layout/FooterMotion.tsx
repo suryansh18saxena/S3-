@@ -28,7 +28,8 @@ export function FooterMotion() {
       if (mark) {
         gsap
           .timeline({ scrollTrigger: { trigger: mark, start: "top bottom-=40", once: true } })
-          .fromTo(mark, { strokeDasharray: 420, strokeDashoffset: 420 }, { strokeDashoffset: 0, duration: 2.6, ease: "power2.inOut" })
+          // Dash longer than any glyph outline, then cleared, so no letter is left with a gap.
+          .fromTo(mark, { strokeDasharray: 1600, strokeDashoffset: 1600 }, { strokeDashoffset: 0, duration: 2.6, ease: "power2.inOut", clearProps: "strokeDasharray,strokeDashoffset" })
           .fromTo(mark, { fillOpacity: 0 }, { fillOpacity: 1, duration: 1.4, ease: "power2.out" }, "-=0.9");
       }
     }, footer);
