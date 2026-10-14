@@ -1,0 +1,318 @@
+/* ==========================================================================
+   Expertise drum — the seven disciplines printed on a 3D cylinder that turns
+   with scroll; the discipline facing you drives the panel beside it.
+   Only with JavaScript and motion; otherwise the plain list (fallback) shows.
+   ========================================================================== */
+.track {
+  display: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :global(.js) .track {
+    display: block;
+    height: calc(100svh + (var(--n) - 1) * 62svh);
+  }
+  :global(.js) .fallback {
+    display: none;
+  }
+}
+
+.stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  min-height: 36rem;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 6rem);
+  padding: calc(var(--header-h) + 1.5rem) var(--gutter) 2rem;
+  max-width: 120rem;
+  margin-inline: auto;
+}
+
+/* ---- The drum ------------------------------------------------------------ */
+.drumWrap {
+  --step: 19deg;
+  position: relative;
+  height: min(72svh, 44rem);
+  perspective: 2600px; /* gentle: the facing title barely grows, so it never meets the mask edge */
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 24%, #000 76%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 24%, #000 76%, transparent);
+}
+/* Guide lines framing the face that is "in the window". */
+.drumWrap::before,
+.drumWrap::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  z-index: 2;
+  height: 1px;
+  background: linear-gradient(90deg, var(--color-blue-600), rgb(16 111 188 / 0.15) 70%, transparent);
+  pointer-events: none;
+}
+.drumWrap::before {
+  top: calc(50% - 0.95em);
+}
+.drumWrap::after {
+  top: calc(50% + 0.95em);
+}
+.drumWrap,
+.drumWrap::before,
+.drumWrap::after {
+  font-size: clamp(2rem, 1rem + 2.4vw, 3.7rem);
+}
+
+.drum {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.face {
+  position: absolute;
+  left: 4%;
+  right: 6%;
+  top: 50%;
+  height: 1.3em;
+  margin-top: -0.65em;
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-family: var(--font-display);
+  font-size: 1em;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--color-ink);
+  white-space: nowrap;
+  cursor: pointer;
+  backface-visibility: hidden;
+  /* Radius = face height / (2 · tan(step / 2)) ≈ 3.9em for 19°. */
+  transform: rotateX(calc(var(--i) * var(--step) * -1)) translateZ(3.9em);
+  transition: color 0.4s ease;
+}
+.face:focus-visible {
+  outline-offset: -2px;
+}
+.faceIdx {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-size: 0.26em;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: var(--color-blue-600);
+  translate: 0 -0.9em;
+}
+.faceTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0.12em 0.1em 0.12em 0.12em; /* room for the italic overhang */
+}
+.face[data-active="true"] {
+  color: var(--color-blue-700);
+}
+.face[data-active="true"] .faceTitle {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  font-size: 1.08em;
+}
+
+/* ---- The panel ----------------------------------------------------------- */
+.panel {
+  position: relative;
+  display: grid;
+  gap: 1.4rem;
+  align-content: center;
+}
+.counter {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.count {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 300;
+  line-height: 0.8;
+  color: var(--color-navy-900);
+}
+.countNow {
+  display: block;
+  height: 0.8em;
+  overflow: hidden;
+  font-size: clamp(3.2rem, 2rem + 3vw, 5.6rem);
+}
+.countNow > span {
+  display: block;
+  transition: translate 0.8s var(--ease-out-expo);
+}
+.countOf {
+  font-size: 1rem;
+  color: var(--color-slate-500);
+}
+.rail {
+  display: flex;
+  gap: 0.35rem;
+}
+.rail span {
+  width: 1.5rem;
+  height: 3px;
+  border-radius: 9px;
+  background: rgb(11 41 69 / 0.15);
+  transition:
+    background-color 0.4s ease,
+    width 0.6s var(--ease-out-expo);
+}
+.rail span[data-on="true"] {
+  width: 2.6rem;
+  background: var(--color-blue-600);
+}
+
+.frame {
+  position: relative;
+  aspect-ratio: 16 / 11;
+  overflow: hidden;
+  border-radius: var(--radius-panel);
+  background: var(--color-navy-900);
+}
+.shot {
+  position: absolute;
+  inset: 0;
+  clip-path: inset(100% 0 0 0);
+  transition: clip-path 1s var(--ease-in-out-quint);
+}
+.shot[data-state="before"] {
+  clip-path: inset(0 0 100% 0);
+}
+.shot[data-state="active"] {
+  clip-path: inset(0 0 0 0);
+  z-index: 1;
+}
+.shot picture,
+.shot img {
+  width: 100%;
+  height: 100%;
+}
+.shot img {
+  object-fit: cover;
+  scale: 1.18;
+  transition: scale 1.6s var(--ease-out-expo);
+}
+.shot[data-state="active"] img {
+  scale: 1;
+}
+.tag {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 0.3);
+  background: rgb(4 15 26 / 0.35);
+  color: rgb(255 255 255 / 0.85);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(6px);
+}
+
+.copies {
+  display: grid;
+}
+.copy {
+  grid-area: 1 / 1;
+  opacity: 0;
+  translate: 0 1.2rem;
+  transition:
+    opacity 0.5s ease,
+    translate 0.7s var(--ease-out-expo);
+  visibility: hidden;
+}
+.copy[data-active="true"] {
+  opacity: 1;
+  translate: 0 0;
+  visibility: visible;
+  transition-delay: 0.15s;
+}
+.copy p {
+  color: var(--color-slate-600);
+  max-width: 34rem;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.chips span {
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: rgb(11 41 69 / 0.05);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--color-slate-600);
+}
+
+.hint {
+  position: absolute;
+  left: var(--gutter);
+  bottom: 1.4rem;
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-slate-500);
+}
+
+/* Phones and small tablets: drum on top, panel below. */
+@media (max-width: 1023px) {
+  .stage {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-content: center;
+    gap: 1.25rem;
+    padding-top: calc(var(--header-h) + 0.75rem);
+  }
+  .drumWrap {
+    height: 30svh;
+  }
+  .drumWrap,
+  .drumWrap::before,
+  .drumWrap::after {
+    font-size: clamp(1.6rem, 1rem + 3.2vw, 2.6rem);
+  }
+  .panel {
+    gap: 0.9rem;
+  }
+  .frame {
+    aspect-ratio: auto;
+    height: 24svh;
+  }
+  .countNow {
+    font-size: 2.6rem;
+  }
+  .chips,
+  .hint {
+    display: none;
+  }
+  .copy p {
+    font-size: 0.95rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}

@@ -61,7 +61,7 @@ export function ExpertiseList({ items, previews }: { items: Item[]; previews: Re
               }`}
             >
               <span className="numeral pt-2 text-sm text-blue-600 lg:pt-0">{item.index}</span>
-              <span className="font-display text-[clamp(1.55rem,1.1rem+1.9vw,3.1rem)] leading-[1.02] font-semibold tracking-[-0.035em] transition-transform duration-700 ease-out-expo lg:group-hover:translate-x-3">
+              <span className="ink-fill font-display text-[clamp(1.55rem,1.1rem+1.9vw,3.1rem)] leading-[1.02] font-semibold tracking-[-0.035em] transition-[translate,background-position] duration-700 ease-out-expo lg:group-hover:translate-x-3">
                 {item.title}
               </span>
               <span className="col-span-2 col-start-2 text-slate-600 md:col-span-1 md:col-start-2 lg:col-start-3 lg:row-start-1">
