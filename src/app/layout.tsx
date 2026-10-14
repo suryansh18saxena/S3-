@@ -7,7 +7,7 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteLoader } from "@/components/layout/SiteLoader";
 import { MotionProvider } from "@/components/motion/MotionProvider";
-import { Cursor } from "@/components/motion/Cursor";
+import { PointerEffects } from "@/components/motion/PointerEffects";
 import { InlineScript } from "@/components/ui/InlineScript";
 import { JsonLd } from "@/components/ui/JsonLd";
 
@@ -88,7 +88,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <MotionProvider />
         <main id="main">{children}</main>
         <SiteFooter />
-        <Cursor />
+        <PointerEffects />
         <JsonLd data={organizationJsonLd()} />
       </body>
     </html>
