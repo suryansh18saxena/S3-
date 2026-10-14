@@ -22,11 +22,11 @@ type Props = {
   ariaLabel?: string;
 };
 
-/** Pill button with a rotating arrow disc, a rolling label and a magnetic pull — the site's primary CTA shape. */
+/** Pill button with a rotating arrow disc, and a rolling label — the site's primary CTA shape. */
 export function ButtonLink({ href, children, variant = "dark", className = "", external, icon, ariaLabel }: Props) {
   const content = (
     <>
-      <span className="roll" data-magnetic-inner>
+      <span className="roll">
         <span>{children}</span>
       </span>
       {variant === "outline" ? (
@@ -44,13 +44,13 @@ export function ButtonLink({ href, children, variant = "dark", className = "", e
   if (external || /^(https?:|tel:|mailto:)/.test(href)) {
     const isWeb = href.startsWith("http");
     return (
-      <a href={href} className={cls} aria-label={ariaLabel} data-magnetic {...(isWeb ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+      <a href={href} className={cls} aria-label={ariaLabel} {...(isWeb ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
         {content}
       </a>
     );
   }
   return (
-    <Link href={href} className={cls} aria-label={ariaLabel} data-magnetic>
+    <Link href={href} className={cls} aria-label={ariaLabel}>
       {content}
     </Link>
   );
