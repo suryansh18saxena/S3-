@@ -30,6 +30,9 @@ export function SiteHeader() {
   const [menuLoaded, setMenuLoaded] = useState(false);
   const lastY = useRef(0);
   const progress = useRef<HTMLSpanElement>(null);
+  // A pill that slides behind whichever link is hovered or focused.
+  const [hl, setHl] = useState({ left: 0, width: 0, show: false });
+  const track = (el: HTMLElement) => setHl({ left: el.offsetLeft, width: el.offsetWidth, show: true });
 
   useEffect(() => {
     let raf = 0;
@@ -60,6 +63,8 @@ export function SiteHeader() {
   }, [isHome]);
 
   const dark = overHero && !menuOpen;
+  // Off the hero, the bar turns solid white once the page has scrolled.
+  const solid = !dark && compact;
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   return (
@@ -67,32 +72,51 @@ export function SiteHeader() {
       <header
         data-site-header
         style={{ viewTransitionName: "site-header" }}
-        className={`fixed inset-x-0 top-0 z-50 transition-transform duration-700 ease-out-expo ${
+        className={`fixed inset-x-0 top-0 z-50 transition-[transform,background-color,box-shadow,color] duration-700 ease-out-expo ${
           hidden && !menuOpen ? "-translate-y-[120%]" : "translate-y-0"
+        } ${
+          solid
+            ? "bg-white text-ink shadow-[0_1px_0_rgb(11_41_69/0.06),0_14px_34px_-20px_rgb(4_15_26/0.35)]"
+            : dark
+              ? "text-white"
+              : "text-ink"
         }`}
       >
-        <div className={`shell transition-[padding] duration-700 ease-out-expo ${compact ? "pt-2.5" : "pt-4 md:pt-5"}`}>
-          <div
-            className={`relative flex items-center justify-between gap-4 rounded-full py-2 pr-2 pl-4 transition-[background,box-shadow,border-color,color] duration-700 ease-out-expo md:pl-5 ${
-              dark ? "glass text-white" : "glass-light text-ink"
-            }`}
-          >
-            {/* Reading progress, drawn along the bottom edge of the pill. */}
-            <span aria-hidden className="pointer-events-none absolute inset-x-6 bottom-0 h-px overflow-hidden rounded-full">
-              <span
-                ref={progress}
-                className={`block h-full origin-left scale-x-0 ${dark ? "bg-sky-300/80" : "bg-blue-600/70"}`}
-              />
-            </span>
-            <Link href="/" aria-label={`${site.name} — home`} className="shrink-0 rounded-md">
-              <Logo onDark={dark} priority className="w-[62px] md:w-[70px]" />
+        {/* Over the hero: a soft dark scrim so the logo and links read on any sky. */}
+        <div
+          aria-hidden
+          className={`pointer-events-none absolute inset-x-0 top-0 h-[160%] bg-gradient-to-b from-navy-950/65 via-navy-950/25 to-transparent transition-opacity duration-700 ${
+            dark ? "opacity-100" : "opacity-0"
+          }`}
+        />
+        {/* Reading progress along the bottom edge of the solid bar. */}
+        <span aria-hidden className={`pointer-events-none absolute inset-x-0 bottom-0 h-0.5 overflow-hidden transition-opacity duration-500 ${solid ? "opacity-100" : "opacity-0"}`}>
+          <span ref={progress} className="block h-full origin-left scale-x-0 bg-blue-600" />
+        </span>
+        <div className="shell relative">
+          {/* Fixed height and logo size: only the background changes on scroll. */}
+          <div className="flex h-[var(--header-h)] items-center justify-between gap-6">
+            <Link href="/" aria-label={`${site.name} — home`} className="shrink-0 rounded-md transition-transform duration-500 ease-out-expo hover:scale-[1.04]">
+              <Logo onDark={dark} priority sizes="112px" className="w-[96px] md:w-[112px]" />
             </Link>
 
             <nav aria-label="Primary" className="hidden lg:block">
-              <ul className="flex items-center gap-1">
+              <ul className="relative flex items-center gap-1" onPointerLeave={() => setHl((h) => ({ ...h, show: false }))}>
+                <span
+                  aria-hidden
+                  className={`pointer-events-none absolute top-1/2 h-10 -translate-y-1/2 rounded-full transition-[left,width,opacity] duration-500 ease-out-expo ${
+                    dark ? "bg-white/15" : "bg-navy-900/[0.07]"
+                  }`}
+                  style={{ left: hl.left, width: hl.width, opacity: hl.show ? 1 : 0 }}
+                />
                 {primaryNav.map((item) =>
                   item.href === "/services/" ? (
-                    <li key={item.href} className="group relative">
+                    <li
+                      key={item.href}
+                      className="group relative"
+                      onPointerEnter={(e) => track(e.currentTarget)}
+                      onFocus={(e) => track(e.currentTarget)}
+                    >
                       <Link
                         href={item.href}
                         aria-current={isActive(item.href) ? "page" : undefined}
@@ -104,18 +128,22 @@ export function SiteHeader() {
                         <span aria-hidden className="mt-px inline-block size-1 rounded-full bg-current opacity-60" />
                       </Link>
                       <div className="pointer-events-none invisible absolute top-full left-1/2 w-[27rem] -translate-x-1/2 pt-3 opacity-0 transition-[opacity,transform,visibility] duration-500 ease-out-expo group-focus-within:pointer-events-auto group-focus-within:visible group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:visible group-hover:opacity-100">
-                        <ul className="glass-light grid gap-1 rounded-[1.4rem] p-2 text-ink">
+                        {/* Near-opaque frosted panel: a backdrop-filter can't reach the page from inside the
+                            (already blurred) header pill, so legibility comes from the fill itself. */}
+                        <ul className="grid gap-1 rounded-[1.4rem] border border-white bg-[linear-gradient(180deg,#ffffff,#f4f9fe)] p-2 text-ink shadow-[0_30px_70px_-24px_rgb(4_15_26/0.55),0_0_0_1px_rgb(11_41_69/0.06),inset_0_1px_0_rgb(255_255_255)]">
                           {serviceNav.map((s) => (
                             <li key={s.href}>
                               <Link
                                 href={s.href}
-                                className="flex items-center justify-between gap-6 rounded-2xl px-4 py-3 transition-colors hover:bg-white focus-visible:bg-white"
+                                className="group/item flex items-center justify-between gap-6 rounded-2xl px-4 py-3 transition-colors hover:bg-ice-100 focus-visible:bg-ice-100"
                               >
                                 <span>
-                                  <span className="block font-display text-[0.98rem] font-semibold tracking-tight">{s.label}</span>
-                                  <span className="block text-[0.8rem] text-slate-500">{s.description}</span>
+                                  <span className="block font-display text-[0.98rem] font-semibold tracking-tight text-ink">{s.label}</span>
+                                  <span className="block text-[0.8rem] text-slate-600">{s.description}</span>
                                 </span>
-                                <ArrowUpRight size={16} className="shrink-0 text-blue-600" />
+                                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-navy-900/5 text-blue-600 transition-[transform,background-color,color] duration-500 ease-out-expo group-hover/item:rotate-45 group-hover/item:bg-blue-600 group-hover/item:text-white">
+                                  <ArrowUpRight size={15} />
+                                </span>
                               </Link>
                             </li>
                           ))}
@@ -123,7 +151,7 @@ export function SiteHeader() {
                       </div>
                     </li>
                   ) : (
-                    <li key={item.href}>
+                    <li key={item.href} className="relative" onPointerEnter={(e) => track(e.currentTarget)} onFocus={(e) => track(e.currentTarget)}>
                       <Link
                         href={item.href}
                         aria-current={isActive(item.href) ? "page" : undefined}
@@ -140,19 +168,25 @@ export function SiteHeader() {
             </nav>
 
             <div className="flex items-center gap-2">
+              {/* Phone: opens up to show the number on hover / focus. */}
               <a
                 href={site.phones[0].href}
-                className={`hidden size-11 place-items-center rounded-full transition-colors sm:grid ${
+                className={`group/phone hidden h-11 items-center rounded-full px-[0.8rem] transition-colors sm:inline-flex ${
                   dark ? "bg-white/10 hover:bg-white/20" : "bg-navy-900/5 hover:bg-navy-900/10"
                 }`}
                 aria-label={`Call ${site.phones[0].display}`}
               >
                 <Phone size={17} />
+                <span
+                  aria-hidden
+                  className="max-w-0 overflow-hidden text-[0.82rem] font-semibold whitespace-nowrap opacity-0 transition-[max-width,margin,opacity] duration-500 ease-out-expo group-hover/phone:ml-2 group-hover/phone:max-w-[9rem] group-hover/phone:opacity-100 group-focus-visible/phone:ml-2 group-focus-visible/phone:max-w-[9rem] group-focus-visible/phone:opacity-100"
+                >
+                  {site.phones[0].display}
+                </span>
               </a>
               <Link
                 href="/contact/"
-                data-magnetic
-                className={`group hidden items-center gap-3 rounded-full py-1.5 pr-1.5 pl-5 font-display text-[0.72rem] font-semibold tracking-[0.14em] uppercase transition-colors duration-500 sm:inline-flex ${
+                className={`nav-shine group relative hidden items-center gap-3 overflow-hidden rounded-full py-1.5 pr-1.5 pl-5 font-display text-[0.72rem] font-semibold tracking-[0.14em] uppercase transition-colors duration-500 sm:inline-flex ${
                   dark ? "bg-white text-navy-900 hover:bg-sky-200" : "bg-navy-900 text-white hover:bg-blue-600"
                 }`}
                 style={{ fontStretch: "108%" }}
