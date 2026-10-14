@@ -93,7 +93,7 @@
 
 :root {
   --gutter: clamp(1rem, 4.4vw, 4.5rem);
-  --header-h: 4.75rem;
+  --header-h: 5.5rem;
   --section-y: clamp(5.5rem, 4rem + 7vw, 11rem);
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
   color-scheme: light;
@@ -421,6 +421,20 @@
     transform: translateY(-1.6em);
   }
 
+  /* Headline that fills with blue ink from the left on hover / focus. */
+  .ink-fill {
+    background-image: linear-gradient(90deg, var(--color-blue-600) 0 50%, var(--color-ink) 50% 100%);
+    background-size: 200% 100%;
+    background-position: 100% 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .group:hover .ink-fill,
+  .group:focus-visible .ink-fill {
+    background-position: 0 0;
+  }
+
   /* Serif italic accent inside headlines (see lib/accent.tsx). */
   .accent {
     font-family: var(--font-serif);
@@ -614,56 +628,6 @@
 }
 
 /* ------------------------------------------------------------------------
-   Contextual cursor (Cursor.tsx) — the native cursor everywhere, except over
-   elements that opt in with data-cursor="Label": there a labelled disc takes
-   over. Fine pointers only, never with reduced motion.
-   ------------------------------------------------------------------------ */
-.has-cursor [data-cursor],
-.has-cursor [data-cursor] * {
-  cursor: none !important;
-}
-/* Positioned by GSAP (transform); the disc inside animates with CSS. */
-.cursor-ring {
-  position: fixed;
-  left: 0;
-  top: 0;
-  z-index: 300;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-}
-.cursor-disc {
-  position: absolute;
-  left: -48px;
-  top: -48px;
-  display: grid;
-  place-items: center;
-  width: 96px;
-  height: 96px;
-  border-radius: 999px;
-  background: var(--color-sky-200);
-  box-shadow: 0 18px 40px -16px rgb(4 15 26 / 0.45);
-  opacity: 0;
-  scale: 0.3;
-  transition:
-    opacity 0.3s ease,
-    scale 0.5s var(--ease-out-expo);
-}
-.cursor-ring[data-state="label"] .cursor-disc {
-  opacity: 1;
-  scale: 1;
-}
-.cursor-label {
-  font-family: var(--font-display);
-  font-stretch: 112%;
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--color-navy-950);
-}
-
-/* ------------------------------------------------------------------------
    Homepage: the section after the hero slides over it as a rounded panel.
    ------------------------------------------------------------------------ */
 .hero-follow {
@@ -701,9 +665,10 @@
   white-space: nowrap;
   padding-inline: 0.18em;
 }
+/* Stroke colour comes from --stroke: currentColor would be the transparent fill. */
 .marquee-word.is-outline {
   color: transparent;
-  -webkit-text-stroke: 1.5px currentColor;
+  -webkit-text-stroke: 1.5px var(--stroke, var(--color-navy-900));
 }
 .marquee-word.is-serif {
   font-family: var(--font-serif);
@@ -973,4 +938,48 @@
 /* Hold page entrances until the curtain lifts. */
 .show-loader:not(.loader-done) :is(.enter, .enter-wipe, .enter-frame, .enter-frame img, .chars-char) {
   animation-play-state: paused;
+}
+
+/* "The usual way vs the S3 way" (TwoWays.tsx): the knot keeps fidgeting,
+   S3's single line flows steadily towards you. */
+.two-ways-tangle path {
+  animation: tw-march 2.6s linear infinite;
+}
+.two-ways-flow {
+  animation: tw-flow 1.1s linear infinite;
+}
+@keyframes tw-march {
+  to {
+    stroke-dashoffset: -22;
+  }
+}
+@keyframes tw-flow {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+
+/* Header CTA: a band of light sweeps across every few seconds. */
+.nav-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.55) 50%, transparent 65%);
+  translate: -120% 0;
+  animation: nav-shine 4.5s var(--ease-in-out-quint) 2.5s infinite;
+  pointer-events: none;
+}
+@keyframes nav-shine {
+  0% {
+    translate: -120% 0;
+  }
+  30%,
+  100% {
+    translate: 120% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-shine::after {
+    display: none;
+  }
 }
