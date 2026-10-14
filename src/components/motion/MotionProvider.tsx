@@ -16,6 +16,7 @@ import { ScrollTrigger, SplitText, gsap, prefersReducedMotion, setLenis, setupGs
  *     data-scrub="words"     (word-by-word colour fill tied to scroll)
  *     data-odometer          (digit columns roll into place; see Odometer.tsx)
  *     data-marquee           (endless band that speeds up with scroll velocity)
+ *     data-stack             (sticky deck: each [data-stack-item] sinks back as the next one lands)
  * Everything is created inside one gsap.context per route and reverted on change.
  */
 export function MotionProvider() {
@@ -243,6 +244,32 @@ export function MotionProvider() {
         });
       }
 
+      // Stacked decks (sticky cards from md up): the card beneath dims as the next lands.
+      if (window.matchMedia("(min-width: 768px)").matches) {
+        for (const deck of gsap.utils.toArray<HTMLElement>("[data-stack]", scope)) {
+          const items = gsap.utils.toArray<HTMLElement>("[data-stack-item]", deck);
+          items.forEach((item, i) => {
+            const next = items[i + 1];
+            const card = item.firstElementChild as HTMLElement | null;
+            if (!next || !card) return;
+            const dim = card.querySelector("[data-stack-dim]");
+            const tl = gsap.timeline({
+              defaults: { ease: "none" },
+              // From the moment the next card reaches this card's lower edge until it lands.
+              scrollTrigger: {
+                trigger: next,
+                start: () => `top ${(parseFloat(getComputedStyle(item).top) || 0) + card.offsetHeight}px`,
+                end: () => `top ${parseFloat(getComputedStyle(next).top) || 0}px`,
+                scrub: true,
+                invalidateOnRefresh: true,
+              },
+            });
+            // Cards keep their width (so the deck stays aligned); covered ones dim.
+            if (dim) tl.to(dim, { opacity: 0.32 }, 0);
+          });
+        }
+      }
+
       // Parallax.
       for (const el of gsap.utils.toArray<HTMLElement>("[data-parallax]", scope)) {
         const amount = Number(el.dataset.parallax || 0.1) * 100;
@@ -258,8 +285,13 @@ export function MotionProvider() {
       }
     }, scope);
 
-    // Layout can shift once web fonts and lazy images settle.
-    const refresh = () => ScrollTrigger.refresh();
+    // Layout can shift once web fonts and lazy images settle. Sorting first puts
+    // every trigger in page order, so ones created here (before the sections'
+    // own pins exist) are measured after the pin spacing above them.
+    const refresh = () => {
+      ScrollTrigger.sort();
+      ScrollTrigger.refresh();
+    };
     document.fonts?.ready.then(refresh);
     window.addEventListener("load", refresh, { once: true });
 
