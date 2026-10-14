@@ -104,7 +104,7 @@ endpoint accepting JSON), set `NEXT_PUBLIC_FORM_ENDPOINT` at build time. A succe
     out, the house cross-fades to a version with lit windows (`hero-house-dusk`, generated from the same cut-out and loaded
     only after the entrance), the camera pushes in and "From first light / to lights on." rises; the studio section then
     slides over a darkening hero. The WebGL clouds take the dusk tint through `setSkyDusk()`.
-  - *Pointer (desktop):* depth parallax, and an X-ray lens — hovering the house reveals its elevation drawing.
+  - *Pointer (desktop):* gentle depth parallax between sky, wordmark and house.
   - Reduced motion: the final daytime composition, no hold, no sequence.
 - **Scroll motion:** `MotionProvider` drives Lenis smooth scrolling from GSAP's ticker and turns markup attributes into
   ScrollTrigger animations, so most sections stay Server Components:
@@ -116,14 +116,31 @@ endpoint accepting JSON), set `NEXT_PUBLIC_FORM_ENDPOINT` at build time. A succe
 - **Loading screen (`layout/SiteLoader.tsx`):** on the first page load of a session the company name assembles on a
   drawing board with a 0–100 count, then lifts away like a curtain; every page entrance waits for it. Skipped with reduced
   motion or JavaScript off (decided by the boot script in `app/layout.tsx`).
-- **Pointer layer (`motion/Cursor.tsx`, mouse/trackpad only):** the native cursor everywhere; a labelled disc replaces it only
-  over elements marked `data-cursor="View"` (service cards, the typology gallery) and the hero's X-ray lens. Magnetic buttons
-  (`data-magnetic`, on every `ButtonLink`), 3D tilt (`data-tilt`) and pointer spotlights (`data-spotlight`). Buttons and nav
-  links use a rolling label (`.roll`). Touch devices keep native behaviour.
-- **Signature sections:** pinned horizontal typology gallery whose cards lean with scroll speed, cursor-following image index
-  for the disciplines (tilts with pointer velocity), a pinned construction sequence where a drawing builds through six stages,
-  a closing headline whose letters swell under the pointer (variable-font weight and width), and a footer wordmark that
-  sketches its own outlines.
+- **Header:** full-width bar with the original logo — transparent over the homepage hero (with a soft dark scrim), solid
+  white once the page scrolls; a pill slides behind the hovered link, the phone button opens to show the number, and the
+  call to action carries a periodic light sweep. Its size never changes on scroll.
+- **Pointer effects (`motion/PointerEffects.tsx`, mouse/trackpad only):** the native cursor is never replaced. Cards can opt
+  into a 3D tilt (`data-tilt`) and a glow that follows the pointer (`data-spotlight`). Buttons and nav links use a rolling
+  label (`.roll`).
+- **Signature sections:**
+  - *Aperture* (`home/Aperture.tsx`): a pinned stage where a window cut into the drawing sheet opens to a full-bleed photograph
+    while "Drawn." and "Built." are pushed apart — one CSS variable (`--a`) scrubbed by GSAP drives it all.
+  - *Typology reel* (`home/TypologyReel.tsx`): each building type fills the screen in turn — the next photograph wipes up
+    over the last as you scroll (which slides back into shadow) and its name rises in; a clickable index jumps between them.
+    Stacked panels without motion.
+  - *Spec sheet*: the studio facts as a blueprint table with rolling figures and dimension lines.
+  - *Studio pillars* (`home/PillarPanels.tsx`): Design / Engineering / Execution as photo panels that open on hover or focus.
+  - *Crossing tapes* (`home/DisciplinesBand.tsx`): two marquee bands crossing like site tape, surging with scroll speed.
+  - *Expertise drum* (`home/ExpertiseDrum.tsx`): the seven disciplines printed on a 3D cylinder that turns with scroll (or a
+    click); the discipline facing you drives a panel with a wiping photograph, counter and link. Reduced motion and no-JS get
+    the plain index (`ExpertiseList.tsx`: titles fill with ink on hover, a preview follows the pointer).
+  - *Construction sequence*: a pinned drawing builds through six project stages.
+  - *Package deck* (`data-stack`): from md up the four packages stack as sticky cards; each card's header row stays visible
+    as a tab (name, tier, rate), so the stack reads as an index, and covered cards dim.
+  - *Two ways to build* (`home/TwoWays.tsx`): a draggable (and keyboard-operable) before/after comparison of separate firms
+    vs S3's single team.
+  - *Finale*: a headline whose letters swell under the pointer (variable-font weight and width); a footer wordmark that
+    sketches its own outlines.
 - **Page transitions:** React `<ViewTransition>` — the old page sinks back and dims while the new one wipes up, with the
   header anchored (no-op where unsupported).
 
